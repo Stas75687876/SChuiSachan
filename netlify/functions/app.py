@@ -1,10 +1,15 @@
 from flask import Flask, render_template, request, jsonify
 from datetime import datetime
 import json
+import os
+
+# Get the absolute path to the templates directory
+template_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../templates'))
+static_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../static'))
 
 app = Flask(__name__, 
-            template_folder='../../templates',
-            static_folder='../../static')
+            template_folder=template_dir,
+            static_folder=static_dir)
 
 # Themes configuration
 themes = {
@@ -97,39 +102,48 @@ questions = [
 
 def handler(event, context):
     """Handle incoming requests."""
-    if event['httpMethod'] == 'GET':
+    try:
+        with app.app_context():
+            if event['httpMethod'] == 'GET':
+                html = render_template('index.html', 
+                                    questions=questions,
+                                    themes=themes)
+                return {
+                    'statusCode': 200,
+                    'headers': {
+                        'Content-Type': 'text/html',
+                        'Cache-Control': 'no-cache'
+                    },
+                    'body': html
+                }
+            elif event['httpMethod'] == 'POST':
+                data = json.loads(event['body'])
+                html = render_template('profile.html',
+                                    answers=data.get('answers', {}),
+                                    questions=questions,
+                                    datetime=datetime,
+                                    theme=themes[data.get('theme', 'girl')])
+                return {
+                    'statusCode': 200,
+                    'headers': {
+                        'Content-Type': 'text/html',
+                        'Cache-Control': 'no-cache'
+                    },
+                    'body': html
+                }
+            else:
+                return {
+                    'statusCode': 405,
+                    'body': 'Method not allowed'
+                }
+    except Exception as e:
         return {
-            'statusCode': 200,
+            'statusCode': 500,
             'headers': {
-                'Content-Type': 'text/html',
-                'Cache-Control': 'no-cache'
+                'Content-Type': 'application/json'
             },
-            'body': render_template('index.html', 
-                                  questions=questions,
-                                  themes=themes)
-        }
-    elif event['httpMethod'] == 'POST':
-        try:
-            data = json.loads(event['body'])
-            return {
-                'statusCode': 200,
-                'headers': {
-                    'Content-Type': 'text/html',
-                    'Cache-Control': 'no-cache'
-                },
-                'body': render_template('profile.html',
-                                      answers=data.get('answers', {}),
-                                      questions=questions,
-                                      datetime=datetime,
-                                      theme=themes[data.get('theme', 'girl')])
-            }
-        except Exception as e:
-            return {
-                'statusCode': 500,
-                'body': json.dumps({'error': str(e)})
-            }
-    else:
-        return {
-            'statusCode': 405,
-            'body': 'Method not allowed'
+            'body': json.dumps({
+                'error': str(e),
+                'traceback': str(e.__traceback__)
+            })
         } 
