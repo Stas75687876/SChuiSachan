@@ -1,14 +1,17 @@
 [build]
-command = """
-python -m pip install --upgrade pip
-pip install -r requirements.txt
-"""
+command = "pip install -r requirements.txt && gunicorn app:app"
+functions = "netlify/functions"
 publish = "."
+
+[dev]
+framework = "#custom"
+command = "python app.py"
 
 [build.environment]
 PYTHON_VERSION = "3.9"
 
 [[redirects]]
 from = "/*"
-to = "/index.html"
-status = 200 
+to = "/.netlify/functions/app"
+status = 200
+force = true 
